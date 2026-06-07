@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "DashboardSync": {
+      "title": "Dashboard Sync",
+      "description": "Stores financial and balance sheet data for a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns this data."
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "financialData": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "balanceSheetData": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            }
+          },
+          "description": "The actual dashboard data."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the data was last updated."
+        }
+      },
+      "required": ["userId", "data", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/dashboard_sync/{userId}": {
+      "schema": "DashboardSync",
+      "description": "User-specific dashboard data sync."
+    }
+  }
+}

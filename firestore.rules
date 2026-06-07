@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: dashboard_sync
+    // Document ID: {userId}
+    // Fields:
+    //   - userId: string (required) - The UID of the owner
+    //   - data: map (required) - Contains financialData and balanceSheetData
+    //   - updatedAt: timestamp (required) - Last update time
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.email.matches('(?i)PrasannaDeshmukh177@gmail.com') ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isAppointyUser() {
+      return isAuthenticated() && (
+        request.auth.token.email.matches('(?i)appointyview@appointy.com') || 
+        request.auth.token.email.matches('(?i)appointyedit@appointy.com') ||
+        request.auth.token.email.matches('(?i)PrasannaDeshmukh177@gmail.com')
+      );
+    }
+
+    function isAppointyEditor() {
+      return isAuthenticated() && (
+        request.auth.token.email.matches('(?i)appointyedit@appointy.com') ||
+        request.auth.token.email.matches('(?i)PrasannaDeshmukh177@gmail.com')
+      );
+    }
+
+    function isValidDashboardSync(data) {
+      return data.keys().hasAll(['userId', 'data', 'updatedAt']) &&
+             data.userId is string &&
+             data.data is map &&
+             data.updatedAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /dashboard_sync/appointy_shared_data {
+      allow read: if isAppointyUser() || isAdmin();
+      allow create, update: if isAppointyEditor() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /dashboard_sync/appointy_shared_data_v2 {
+      allow read: if isAppointyUser() || isAdmin();
+      allow create, update: if isAppointyEditor() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /dashboard_sync/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && isValidDashboardSync(request.resource.data);
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && request.resource.data.role == 'user';
+      allow delete: if isAdmin();
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
